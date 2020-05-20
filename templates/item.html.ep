@@ -1,0 +1,242 @@
+<!-- vim: set syntax=html : -->
+
+% layout 'default';
+% title 'Item ' . $id . ' - TAKP Prices';
+
+
+<div id="app" class="container">
+
+  <div v-if="loading_stats">
+    <center>
+      <img src="/img/ajax-loader.gif" alt="Loading..."/>
+      <br>
+      Retrieving stats...
+      <br>
+      <br>
+    </center>
+  </div>
+
+  <div v-else id="item-stats" v-html="item_stats_html">
+    {{ `${item.name} (${item.id})` }}
+  </div>
+
+  <center>
+    <b>
+      <a href="https://www.takproject.net/allaclone/item.php?id=<%= $id %>">
+        View item on TAKP Alla Clone
+      </a>
+    </b>
+  </center>
+
+  <div class="row">
+    <!--<div class="col-md-6">-->
+    <table class="table table-striped table-condensed table-hover" id="items_table">
+      <caption>Price Aggregate</caption>
+      <thead>
+        <th>Range</th>
+        <th style="text-align: right">Count</th>
+        <th style="text-align: right">Median</th>
+        <th style="text-align: right">Avg</th>
+        <th style="text-align: right">Min</th>
+        <th style="text-align: right">Max</th>
+      </thead>
+      <tbody>
+        <tr>
+          <td>30 Days</td>
+          <td style="text-align: right">
+            {{ item.price_agg['30_day'].count ? item.price_agg['30_day'].count : '0' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['30_day'].median ? item.price_agg['30_day'].median.toFixed(0) : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['30_day'].avg ? item.price_agg['30_day'].avg.toFixed(0) : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['30_day'].min ? item.price_agg['30_day'].min : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['30_day'].max ? item.price_agg['30_day'].max : 'N/A' }}
+          </td>
+        </tr>
+        <tr>
+          <td>90 Days</td>
+          <td style="text-align: right">
+            {{ item.price_agg['90_day'].count ? item.price_agg['90_day'].count : '0' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['90_day'].median ? item.price_agg['90_day'].median.toFixed(0) : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['90_day'].avg ? item.price_agg['90_day'].avg.toFixed(0) : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['90_day'].min ? item.price_agg['90_day'].min : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['90_day'].max ? item.price_agg['90_day'].max : 'N/A' }}
+          </td>
+        </tr>
+        <tr>
+          <td>All Time</td>
+          <td style="text-align: right">
+            {{ item.price_agg['all'].count ? item.price_agg['all'].count : '0' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['all'].median ? item.price_agg['all'].median.toFixed(0) : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['all'].avg ? item.price_agg['all'].avg.toFixed(0) : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['all'].min ? item.price_agg['all'].min : 'N/A' }}
+          </td>
+          <td style="text-align: right">
+            {{ item.price_agg['all'].max ? item.price_agg['all'].max : 'N/A' }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div> <!-- .row -->
+
+  <div v-if="loading">
+    <center>
+      <img src="/img/ajax-loader.gif" alt="Loading..."/>
+    </center>
+  </div>
+
+  <div id="chart" height="120px"></div>
+
+  <table class="table table-striped table-condensed table-hover" id="instances_table">
+    <thead>
+      <th>Timestamp</th>
+      <th style="text-align: right">Price (pp)</th>
+      <th style="text-align: right">Qty</th>
+    </thead>
+    <tbody>
+      <tr v-for="(instance, idx) in item.instances">
+        <td style="vertical-align: middle">
+          {{ new Date(instance.timestamp).toLocaleDateString() }}
+          {{ new Date(instance.timestamp).toLocaleTimeString() }}
+        </td>
+        <td style="text-align: right">
+          {{ instance.price_pp }}
+        </td>
+        <td style="text-align: right">
+          {{ instance.quantity }}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script type="text/javascript">
+  var app = new Vue({
+    el: '#app',
+
+    data: {
+      item_stats_html: '<div></div>',
+      item: {
+        price_agg: {
+          '30_day': {
+            avg: 0,
+            min: 0,
+            max: 0,
+            count: 0,
+          },
+          '90_day': {
+            avg: 0,
+            min: 0,
+            max: 0,
+            count: 0,
+          },
+          'all': {
+            avg: 0,
+            min: 0,
+            max: 0,
+            count: 0,
+          },
+        },
+      },
+      loading: true,
+      loading_stats: true,
+    },
+
+    mounted: function () {
+      this.$http.get('/api/item', { params: { id: <%= $id %> } })
+        .then(response => {
+          var item = response.body;
+          document.title = `${item.name} (${item.id}) - TAKP Prices`;
+
+          item.instances.sort(function (a, b) {
+            return b.timestamp.localeCompare(a.timestamp);
+          });
+
+          this.item = item;
+
+          var chart = c3.generate({
+            bindto: '#chart',
+            data: {
+              json: this.item.instances,
+              keys: {
+                x: 'timestamp',
+                value: [ 'price_pp' ],
+              },
+              xFormat: '%Y-%m-%dT%H:%M:%SZ',
+              type: 'scatter',
+              labels: true,
+            },
+            point: { r: 4 }, //function (d) { console.log(d); return 4; } },
+            axis: {
+              x: {
+                type: 'timeseries',
+                tick: {
+                  format: '%Y/%m/%d',// %H:%M',
+                  count: 5,
+                },
+              },
+              y: {
+                tick: {
+                  //count: 3,
+                  format: d3.format('d'),
+                }
+              },
+            },
+            tooltip: {
+              grouped: true, // doesn't actually work for scatter
+            },
+            grid: {
+              y: {
+                show: true,
+                lines: [ {
+                  value: this.item.price_agg['30_day'].avg || null,
+                  text: '30d Avg (' +
+                    (this.item.price_agg['30_day'].avg
+                      ? this.item.price_agg['30_day'].avg.toFixed(0)
+                      : null)
+                    + ')',
+                }],
+              },
+              x: { show: true, count: 5 },
+            },
+            legend: { show: false },
+            size: {
+              height: 200,
+            },
+            padding: { right: 40 },
+          }).flush();
+
+          this.loading = false;
+        });
+
+      this.$http.get('/api/item_stats_html', { params: { id: <%= $id %> } })
+        .then(response => {
+          //console.log(response.bodyText);
+          this.item_stats_html = response.body;
+          this.loading_stats = false;
+        });
+    }
+  });
+
+</script>

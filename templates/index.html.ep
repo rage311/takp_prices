@@ -1,0 +1,105 @@
+<!-- vim: set syntax=html : -->
+
+% layout 'default';
+% title 'TAKP Prices - Main';
+
+<div id="app">
+  <div class="container">
+
+    <% if (flash 'message') { %>
+    <font color="red">Item not found</font>
+    <br>
+    <% } %>
+
+    <input class="form-control" id="search" type="text" placeholder="Search...">
+    <br>
+
+      <table class="table table-striped table-condensed table-hover" id="items_table">
+        <caption>
+          30 Day Stats
+        </caption>
+        <thead>
+          <th style="display:none">ID</th>
+          <th>Name</th>
+          <th style="text-align: right">Cnt</th>
+          <th style="text-align: right">Avg</th>
+          <th style="text-align: right">Min</th>
+          <th style="text-align: right">Max</th>
+          <th style="text-align: right">Last</th>
+        </thead>
+        <tbody id="item_table_body">
+          % for my $item (@$items) {
+            <tr class="item" data-itemid="<%= $item->{id} %>">
+              <td class="item_id" style="text-align:right; display:none">
+                %= $item->{id}
+              </td>
+              <td
+                class="item_name"
+                style="vertical-align: middle; font-weight: bold"
+                data-statshtml="<%= $item->{stats_html} %>"
+              >
+                <a
+                  href="<%= '/item?id=' . $item->{id} %>"
+                  class="item_link"
+                  data-toggle="tooltip"
+                  data-html="true"
+                  data-placement="auto"
+                  title="<%= $item->{stats_html} || 'Stats not yet cached' %>"
+                >
+                  <%= $item->{name} %>
+                </a>
+              </td>
+              <td class="30_day_count" style="text-align: right">
+                %= $item->{price_agg}{'30_day'}{count} // 'N/A'
+              </td>
+              <td class="30_day_avg" style="text-align: right">
+                <%= $item->{price_agg}{'30_day'}{avg} ? int $item->{price_agg}{'30_day'}{avg} : 'N/A' %>
+              </td>
+              <td class="30_day_min" style="text-align: right">
+                %= $item->{price_agg}{'30_day'}{min} // 'N/A'
+              </td>
+              <td class="30_day_max" style="text-align: right">
+                %= $item->{price_agg}{'30_day'}{max} // 'N/A'
+              </td>
+              <td class="last_seen" title="<%= $item->{last_seen}{timestamp} %>" style="text-align: right">
+                <%= $item->{last_seen}{days_diff} < 1 ? int($item->{last_seen}{days_diff} * 24) . 'h' : int($item->{last_seen}{days_diff}) . 'd' %>
+              </td>
+            </tr>
+          % }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+<script type="text/javascript">
+
+  function setFilter() {
+    var value = $('#search').val().toLowerCase();
+    $("#item_table_body tr").filter(function() {
+      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+    });
+  }
+
+  setFilter();
+
+  $(document).ready(() => {
+    $('[data-toggle="tooltip"]').tooltip();
+
+    document.querySelector('#search')
+      .addEventListener('keyup', (event) => setFilter());
+
+    document.querySelectorAll('.last_seen')
+      .forEach(elem => {
+        elem.addEventListener('mouseover', event => {
+          let title = event.target.title;
+
+          // in RFC 3339 format with zulu timezone
+          if (title.length === 20 && title.indexOf('Z') === title.length - 1) {
+            event.target.title = new Date(title);
+          }
+        })
+      });
+  });
+
+</script>
